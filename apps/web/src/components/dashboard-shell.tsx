@@ -1,14 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Menu } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/stores/auth-store";
 
 // Responsive authenticated shell: static sidebar on md+, top bar + overlay drawer on mobile.
 export function DashboardShell({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore((state) => state.user);
+  const fetchMe = useAuthStore((state) => state.fetchMe);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authAttempt, setAuthAttempt] = useState(0);
+  const hasBootstrapped = useRef(false);
   const closeSidebar = () => setSidebarOpen(false);
+
+  useEffect(() => {
+    if (user) {
+      hasBootstrapped.current = true;
+      return;
+    }
+    if (hasBootstrapped.current) return;
+
+    let active = true;
+    void fetchMe()
+      .then(() => {
+        if (active) {
+          hasBootstrapped.current = true;
+          setAuthError(null);
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setAuthError(error instanceof Error ? error.message : "Could not restore your session.");
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authAttempt, fetchMe, user]);
+
+  if (!user && authError) {
+    return (
+      <div className="grid min-h-screen place-items-center p-6">
+        <section className="max-w-md text-center">
+          <h1 className="text-2xl font-semibold">Your session could not be restored</h1>
+          <p className="mt-2 text-muted-foreground">{authError}</p>
+          <div className="mt-5 flex justify-center gap-3">
+            <Button variant="outline" render={<Link href="/login" />} nativeButton={false}>
+              Go to sign in
+            </Button>
+            <Button
+              onClick={() => {
+                setAuthError(null);
+                setAuthAttempt((attempt) => attempt + 1);
+              }}
+            >
+              Try again
+            </Button>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

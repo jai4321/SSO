@@ -46,7 +46,7 @@ The initial super admin is created during organization registration. A user may 
 
 ### 3. User Management
 - `POST /api/users` - SUPERADMIN or permitted ADMIN creates organization users with an allowed organization role.
-- `GET /api/users` - list users in organization (paginated).
+- `GET /api/users` - list users in organization (paginated), with optional name/email search and organization-role/status filters.
 - `PATCH /api/users/:id` - update user details.
 - `PATCH /api/users/:id/activate` and `/deactivate` - toggle user status.
 - Enforce unique login credentials (email) per organization.
@@ -86,7 +86,7 @@ The initial super admin is created during organization registration. A user may 
 - Show only organization users, workspaces, and workspace actions allowed by the current organization role and membership.
 
 ### 3. User Management UI
-- List users table (name, email, status, role).
+- List users table (name, email, status, role) with search, role/status filters, and pagination.
 - Create user form with role choices allowed by the current organization role.
 - Activate/deactivate toggle action.
 

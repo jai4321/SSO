@@ -56,5 +56,5 @@ When an AI agent reads this file, it must consult the relevant requirement files
 
 ## Scope-Specific Instructions
 - Backend changes: follow the API conventions in `apps/api` and use Drizzle for database access.
-- Frontend changes: also read `apps/web/AGENTS.md` and follow its Next.js-specific guidance.
+- Frontend changes: also read `apps/web/AGENTS.md` and follow its Next.js-specific guidance. For searchable, filterable, or paginated lists, use the shared `apps/web/src/components/data-table.tsx`; configure page-specific columns and filters and connect its query state to the relevant data hook/API instead of reimplementing the table controls.
 - Requirement or phase changes: update the appropriate files under `.ai-context` rather than creating duplicate requirement documents at the repository root.

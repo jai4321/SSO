@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { and, count, desc, eq, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, isNull, or } from 'drizzle-orm';
 import { env } from '@/config/env';
 import { organizations, users } from '@/db/schema';
 import {
@@ -151,7 +151,23 @@ export async function createUser(actor: Actor, input: CreateUserInput) {
 }
 
 export async function listUsers(actor: Actor, query: ListUsersQuery) {
-  const where = and(eq(users.organizationId, actor.organizationId), isNull(users.deletedAt));
+  const filters = [eq(users.organizationId, actor.organizationId), isNull(users.deletedAt)];
+
+  if (query.search) {
+    const escapedSearch = query.search.replace(/[\\%_]/g, '\\$&');
+    const pattern = `%${escapedSearch}%`;
+    filters.push(or(ilike(users.name, pattern), ilike(users.email, pattern))!);
+  }
+
+  if (query.organizationRole) {
+    filters.push(eq(users.organizationRole, query.organizationRole));
+  }
+
+  if (query.status) {
+    filters.push(eq(users.isActive, query.status === 'active'));
+  }
+
+  const where = and(...filters);
 
   const [{ value: total }] = await db.select({ value: count() }).from(users).where(where);
   const rows = await db

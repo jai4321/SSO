@@ -3,23 +3,19 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLogout } from "@/hooks/use-auth";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function HomeView() {
-  const { user, accessToken, fetchMe } = useAuthStore();
+  const { user, fetchMe } = useAuthStore();
   const logout = useLogout();
   const router = useRouter();
 
   useEffect(() => {
-    if (accessToken && !user) {
-      fetchMe().catch(() => toast.error("Could not load your account"));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken]);
+    if (!user) void fetchMe().catch(() => undefined);
+  }, [fetchMe, user]);
 
   if (!user) {
     return (

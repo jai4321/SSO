@@ -29,7 +29,7 @@ Requirements: [summary.md](../summary.md) (Backend Tasks 1 and 2).
 ## Frontend
 - [x] Organization registration form (org details, address with country dropdown, user name and email)
 - [x] `/verify-organization` page (calls verify API, shows set-password form)
-- [x] Login page and session handling (zustand store + HTTP-only cookies via `/api/auth/session` route handler; middleware redirects authenticated users away from auth pages)
+- [x] Login page and cookie-backed session handling via Next.js route handlers; tokens stay in HTTP-only cookies, Zustand stores only the user profile, and middleware uses cookie presence for auth-page redirects
 
 ## Tests
 - [ ] Registration creates org + user atomically; rolls back when email fails

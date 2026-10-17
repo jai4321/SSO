@@ -2,8 +2,8 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { getSessionCookies } from "@/lib/session";
 
-// Server-component guard for protected pages: redirects to /login when no session cookie exists.
-// UX only — the API enforces the real authorization boundary.
+// UX guard only: cookie presence avoids rendering protected pages when signed out.
+// Authenticated API requests validate and refresh the session on the server.
 export async function requireSession() {
   const { refreshToken } = await getSessionCookies();
   if (!refreshToken) redirect("/login");

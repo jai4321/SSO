@@ -4,7 +4,7 @@ Requirements: [summary.md](../summary.md) (Backend Task 3, Frontend Task 3). Dep
 
 ## Backend
 - [x] `POST /api/users` - create organization user with allowed role (invitation/set-password email, no plain password sent)
-- [x] `GET /api/users` - paginated list scoped to the organization, excluding soft-deleted
+- [x] `GET /api/users` - paginated list scoped to the organization, excluding soft-deleted; supports name/email search and organization-role/status filters
 - [x] `GET /api/users/:id`
 - [x] `PATCH /api/users/:id` - update details
 - [x] `PATCH /api/users/:id/activate` and `/deactivate`
@@ -23,9 +23,12 @@ Requirements: [summary.md](../summary.md) (Backend Task 3, Frontend Task 3). Dep
 - Smoke-tested end-to-end 2026-10-10 (28 checks: create/list/update/role policy/guards/deactivate-login-block/delete/invite+resend/MEMBER 403). Automated tests still pending below.
 
 ## Frontend
-- [ ] Users list table (name, email, status, role)
-- [ ] Create user form with roles allowed for the current role
-- [ ] Activate/deactivate and delete actions
+- [x] Users list table (name, email, status, role) with search, role/status filters, and pagination
+- [x] Shared server-query-compatible data table for configurable columns, search, filters, loading/error states, and pagination; used by the organization-users list
+- [x] Create user form with roles allowed for the current role
+- [x] Activate/deactivate and delete actions
+- [x] User-management requests use cookie-backed Next.js routes and restore the current user after a page reload
+- [x] Browser API calls use a same-origin Axios client; safe reads retry once after a 429 response when `Retry-After` is available
 - [ ] `/set-password` page for invited users (reuses the set-password form from the verify flow)
 
 ## Tests
