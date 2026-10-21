@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SetPasswordForm } from "@/components/set-password-form";
 import { useVerifyOrganization } from "@/hooks/use-organization";
 import { ApiError } from "@/lib/api-client";
-import { SetPasswordForm } from "./set-password-form";
 
 export function VerifyToken({ token }: { token?: string }) {
   const verify = useVerifyOrganization();
@@ -31,7 +31,7 @@ export function VerifyToken({ token }: { token?: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  if (setPasswordToken) return <SetPasswordForm setPasswordToken={setPasswordToken} />;
+  if (setPasswordToken) return <SetPasswordForm token={setPasswordToken} />;
 
   if (!token || errorMessage) {
     return (

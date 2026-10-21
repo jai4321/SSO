@@ -22,6 +22,7 @@ interface UsersTableProps {
   total: number;
   currentUserId: string;
   currentRole: OrganizationRole;
+  canManageUsers: boolean;
   isLoading: boolean;
   isFetching: boolean;
   isPending: boolean;
@@ -81,6 +82,7 @@ export function UsersTable({
   total,
   currentUserId,
   currentRole,
+  canManageUsers,
   isLoading,
   isFetching,
   isPending,
@@ -153,7 +155,9 @@ export function UsersTable({
       headerClassName: "px-5 text-right",
       className: "px-5",
       cell: (user) => {
-        const canManage = currentRole === "SUPERADMIN" || user.createdBy === currentUserId;
+        const canManage =
+          canManageUsers &&
+          (currentRole === "SUPERADMIN" || user.createdBy === currentUserId);
         const isSelf = user.id === currentUserId;
 
         return (

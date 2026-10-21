@@ -25,6 +25,14 @@ Organization roles are fixed in Phase 1:
 
 The initial super admin is created during organization registration. A user may hold one organization role and may be an ADMIN member of multiple workspaces.
 
+### Phase 1.3 organization permission grants
+
+The organization role enum stays fixed at `SUPERADMIN`, `ADMIN`, and `MEMBER`. System-wide permissions are stored in `permissions` and role grants in `role_permissions`; neither table is organization-scoped. Grant changes are made through migrations or seed updates, with no runtime grant editor or Redis permission cache in this phase.
+
+The initial catalog includes `organization.users.read`, `organization.users.create`, `organization.users.manage`, `organization.users.assign_role`, `workspace.create`, and `workspace.products.manage`. `SUPERADMIN` receives every catalog permission, `ADMIN` receives user read/create/manage plus workspace creation and product management, and `MEMBER` receives workspace product management. These grants do not remove resource checks: ADMIN user listings and reads are scoped to users they created, user mutations remain limited to those users, role assignment remains SUPERADMIN-only, and workspace/product operations must check the applicable organization and workspace membership.
+
+Authenticated API requests load the current role's permission keys from PostgreSQL. `GET /api/auth/me` returns them as `user.permissions` alongside the current user identity and role. The frontend validates the role and permission-list shape; malformed or unknown permission lists grant no UI capabilities. Shared `useCan(permissionKey)` gates navigation and controls, while backend checks remain authoritative. SUPERADMIN access outside the creator scope is written to the organization-scoped `audit_events` table, and user creation and role assignments are audited there as well. Product-user roles and permissions remain product-scoped and separate from organization-user grants. Platform-admin identity remains separate for Phase 5.
+
 ## Backend Tasks
 
 ### 1. Organization Registration API

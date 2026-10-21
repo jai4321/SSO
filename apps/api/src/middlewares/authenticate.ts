@@ -5,7 +5,12 @@ import type { OrganizationRole } from '@/types/fastify-jwt';
 
 declare module 'fastify' {
   interface FastifyRequest {
-    currentUser: { id: string; organizationId: string; organizationRole: OrganizationRole };
+    currentUser: {
+      id: string;
+      organizationId: string;
+      organizationRole: OrganizationRole;
+      permissions: string[];
+    };
   }
 }
 

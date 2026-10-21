@@ -2,14 +2,10 @@
 
 import { create } from "zustand";
 import { webApi } from "@/lib/web-api";
+import { authUserSchema, type AuthUser } from "@/lib/auth-permissions";
 
-export type OrganizationRole = "SUPERADMIN" | "ADMIN" | "MEMBER";
-
-export interface AuthUser {
-  id: string;
-  organizationId: string;
-  organizationRole: OrganizationRole;
-}
+export type { AuthUser } from "@/lib/auth-permissions";
+export type OrganizationRole = AuthUser["organizationRole"];
 
 let fetchMeRequest: Promise<AuthUser> | null = null;
 let fetchMeRequestId: symbol | null = null;
@@ -35,7 +31,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (fetchMeRequest) return fetchMeRequest;
 
     const requestGeneration = authGeneration;
-    const request = webApi<{ user: AuthUser }>("/api/auth/me").then(({ user }) => {
+    const request = webApi<{ user: unknown }>("/api/auth/me").then(({ user: value }) => {
+      const parsedUser = authUserSchema.safeParse(value);
+      if (!parsedUser.success) {
+        throw new Error("The current-user response is invalid.");
+      }
+      const user = parsedUser.data;
       if (requestGeneration === authGeneration) set({ user });
       return user;
     });

@@ -8,7 +8,7 @@ Single place to see what is planned and what is done. Update the checkboxes as w
 |------|-------|--------|------|
 | 1.1 | Organization registration and verification, set password, login with server-managed HTTP-only session cookies | [~] In progress | [01-organization-registration.md](phases/PHASE_1/tasks/01-organization-registration.md) |
 | 1.2 | Organization user creation and management with cookie-backed API requests | [~] In progress | [02-user-management.md](phases/PHASE_1/tasks/02-user-management.md) |
-| 1.3 | Roles and permissions for SUPERADMIN, ADMIN, MEMBER | [ ] Not started | [03-roles-permissions.md](phases/PHASE_1/tasks/03-roles-permissions.md) |
+| 1.3 | Roles and permissions for SUPERADMIN, ADMIN, MEMBER | [x] Complete | [03-roles-permissions.md](phases/PHASE_1/tasks/03-roles-permissions.md) |
 | 1.4 | Workspace creation and invitations | [ ] Not started | [04-workspaces.md](phases/PHASE_1/tasks/04-workspaces.md) |
 
 Order: 1.1 -> 1.2 -> 1.3 -> 1.4. Each part includes its own backend, frontend and tests.

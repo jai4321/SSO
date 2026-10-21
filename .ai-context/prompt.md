@@ -1,0 +1,5 @@
+- As we will work on task 3 of phase 1, we will be building roles and permissions for organization users.
+- we have two task one to guard admin user action in backend and hide UI element based on roles/permission on frontend.
+- roles/permission cant be statically handle. because i need this in scalable because when i add something new feature for organization users. then i need to create guard and handle UI accordingly which takes time so we need to manage in that way that we have something in common where we can handle roles permission dynamically and it will be future proof.
+- remind this thing to that in the future i can create seperate admin panel to manage organization. because we are building this project for client and so they can handle their client. but we need to handle our client which is organization.
+- so tell me what are the options to handle these things.

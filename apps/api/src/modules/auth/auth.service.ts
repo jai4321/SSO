@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import bcrypt from 'bcrypt';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { env } from '@/config/env';
-import { organizations, users } from '@/db/schema';
+import { organizations, permissions, rolePermissions, users } from '@/db/schema';
 import { BadRequestError, ForbiddenError, UnauthorizedError } from '@/errors/app-error';
 import { db } from '@/lib/db';
 import { redis } from '@/lib/redis';
@@ -15,6 +15,10 @@ export interface AuthUser {
   id: string;
   organizationId: string;
   organizationRole: OrganizationRole;
+}
+
+export interface AuthenticatedUser extends AuthUser {
+  permissions: string[];
 }
 
 export async function validateCredentials(email: string, password: string): Promise<AuthUser> {
@@ -45,7 +49,7 @@ export async function validateCredentials(email: string, password: string): Prom
   return { id: row.id, organizationId: row.organizationId, organizationRole: row.organizationRole };
 }
 
-export async function getAuthUserById(id: string): Promise<AuthUser> {
+export async function getAuthUserById(id: string): Promise<AuthenticatedUser> {
   const [row] = await db
     .select({
       id: users.id,
@@ -62,7 +66,18 @@ export async function getAuthUserById(id: string): Promise<AuthUser> {
   if (!row || !row.isActive) throw new UnauthorizedError('Account is deactivated or no longer exists');
   if (!row.organizationIsVerified) throw new ForbiddenError('Organization is not verified yet');
 
-  return { id: row.id, organizationId: row.organizationId, organizationRole: row.organizationRole };
+  const grants = await db
+    .select({ key: permissions.key })
+    .from(rolePermissions)
+    .innerJoin(permissions, eq(rolePermissions.permissionKey, permissions.key))
+    .where(eq(rolePermissions.role, row.organizationRole));
+
+  return {
+    id: row.id,
+    organizationId: row.organizationId,
+    organizationRole: row.organizationRole,
+    permissions: grants.map(({ key }) => key),
+  };
 }
 
 export async function storeSession(userId: string, tokenId: string, refreshToken: string) {

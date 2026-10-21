@@ -29,7 +29,7 @@ Requirements: [summary.md](../summary.md) (Backend Task 3, Frontend Task 3). Dep
 - [x] Activate/deactivate and delete actions
 - [x] User-management requests use cookie-backed Next.js routes and restore the current user after a page reload
 - [x] Browser API calls use a same-origin Axios client; safe reads retry once after a 429 response when `Retry-After` is available
-- [ ] `/set-password` page for invited users (reuses the set-password form from the verify flow)
+- [x] `/set-password` page for invited users (reuses the set-password form from the verify flow)
 
 ## Tests
 - [ ] Tenant isolation: cannot read or edit users of another organization

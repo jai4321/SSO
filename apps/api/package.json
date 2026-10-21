@@ -10,6 +10,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
+    "test": "tsx --test test/permissions.test.ts",
     "lint": "eslint . --ext .ts",
     "typecheck": "tsc --noEmit"
   },

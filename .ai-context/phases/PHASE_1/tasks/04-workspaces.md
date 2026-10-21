@@ -22,3 +22,4 @@ Requirements: [summary.md](../summary.md) (Backend Task 5, Frontend Task 4). Dep
 
 ## Tests
 - [ ] Register -> login -> create users by role -> create workspace -> invite ADMIN and MEMBER -> visibility checks
+- [ ] Verify `workspace.products.manage` grants remain limited by organization tenancy and workspace membership

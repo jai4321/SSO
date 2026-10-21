@@ -16,6 +16,7 @@ import {
   type OrganizationUser,
 } from "@/hooks/use-users";
 import { useAuthStore, type OrganizationRole } from "@/stores/auth-store";
+import { useCan } from "@/hooks/use-can";
 import { UserFormDialog, type UserFormValues } from "./user-form-dialog";
 import { UsersTable } from "./users-table";
 
@@ -31,6 +32,10 @@ const messageFrom = (error: unknown, fallback: string) =>
 
 export function AdminUsersView() {
   const user = useAuthStore((state) => state.user);
+  const canViewUsers = useCan("organization.users.read");
+  const canCreateUsers = useCan("organization.users.create");
+  const canManageUsers = useCan("organization.users.manage");
+  const canAssignRoles = useCan("organization.users.assign_role");
   const [tableQuery, setTableQuery] = useState<DataTableQuery>({
     search: "",
     filters: { role: "all", status: "all" },
@@ -38,14 +43,15 @@ export function AdminUsersView() {
     pageSize: PAGE_SIZE,
   });
   const [formOpen, setFormOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<OrganizationUser | null>(null);
+  const [selectedUser, setSelectedUser] = useState<OrganizationUser | null>(
+    null,
+  );
   const [formSession, setFormSession] = useState(0);
 
   const search = tableQuery.search;
   const roleFilter = (tableQuery.filters.role ?? "all") as RoleFilter;
   const statusFilter = (tableQuery.filters.status ?? "all") as StatusFilter;
   const page = tableQuery.page;
-  const canViewUsers = user?.organizationRole === "SUPERADMIN" || user?.organizationRole === "ADMIN";
   const query = useMemo(
     () => ({
       page: tableQuery.page,
@@ -63,7 +69,10 @@ export function AdminUsersView() {
   const setUserActive = useSetOrganizationUserActive();
   const deleteUser = useDeleteOrganizationUser();
   const isActionPending =
-    createUser.isPending || updateUser.isPending || setUserActive.isPending || deleteUser.isPending;
+    createUser.isPending ||
+    updateUser.isPending ||
+    setUserActive.isPending ||
+    deleteUser.isPending;
 
   const total = usersQuery.data?.total ?? 0;
   const users = usersQuery.data?.users ?? [];
@@ -81,8 +90,10 @@ export function AdminUsersView() {
   };
 
   const matchesCurrentFilters = (target: OrganizationUser) => {
-    const matchesRole = roleFilter === "all" || target.organizationRole === roleFilter;
-    const matchesStatus = statusFilter === "all" || (statusFilter === "active") === target.isActive;
+    const matchesRole =
+      roleFilter === "all" || target.organizationRole === roleFilter;
+    const matchesStatus =
+      statusFilter === "all" || (statusFilter === "active") === target.isActive;
     const normalizedSearch = search.toLowerCase();
     const matchesSearch =
       !normalizedSearch ||
@@ -93,24 +104,29 @@ export function AdminUsersView() {
 
   const moveBackIfLastVisibleRowLeaves = (willRemain: boolean) => {
     if (!willRemain && users.length === 1 && page > 1) {
-      setTableQuery((current) => ({ ...current, page: Math.max(1, current.page - 1) }));
+      setTableQuery((current) => ({
+        ...current,
+        page: Math.max(1, current.page - 1),
+      }));
     }
   };
 
   const handleFormSubmit = async (values: UserFormValues) => {
     if (!user) return;
-
     try {
       if (selectedUser) {
         const updatedUser = {
           ...selectedUser,
           name: values.name,
-          organizationRole: values.organizationRole ?? selectedUser.organizationRole,
+          organizationRole:
+            values.organizationRole ?? selectedUser.organizationRole,
         };
         await updateUser.mutateAsync({
           id: selectedUser.id,
           name: values.name,
-          ...(values.organizationRole ? { organizationRole: values.organizationRole } : {}),
+          ...(values.organizationRole
+            ? { organizationRole: values.organizationRole }
+            : {}),
         });
         moveBackIfLastVisibleRowLeaves(matchesCurrentFilters(updatedUser));
         toast.success("User updated.");
@@ -127,22 +143,38 @@ export function AdminUsersView() {
       setFormOpen(false);
       setSelectedUser(null);
     } catch (error) {
-      toast.error(messageFrom(error, selectedUser ? "Could not update user." : "Could not create user."));
+      toast.error(
+        messageFrom(
+          error,
+          selectedUser ? "Could not update user." : "Could not create user.",
+        ),
+      );
     }
   };
 
-  const handleSetActive = async (target: OrganizationUser, isActive: boolean) => {
+  const handleSetActive = async (
+    target: OrganizationUser,
+    isActive: boolean,
+  ) => {
     try {
       await setUserActive.mutateAsync({ id: target.id, isActive });
-      moveBackIfLastVisibleRowLeaves(matchesCurrentFilters({ ...target, isActive }));
+      moveBackIfLastVisibleRowLeaves(
+        matchesCurrentFilters({ ...target, isActive }),
+      );
       toast.success(isActive ? "User activated." : "User deactivated.");
     } catch (error) {
-      toast.error(messageFrom(error, isActive ? "Could not activate user." : "Could not deactivate user."));
+      toast.error(
+        messageFrom(
+          error,
+          isActive ? "Could not activate user." : "Could not deactivate user.",
+        ),
+      );
     }
   };
 
   const handleDelete = async (target: OrganizationUser) => {
-    if (!window.confirm(`Delete ${target.name}? This action cannot be undone.`)) return;
+    if (!window.confirm(`Delete ${target.name}? This action cannot be undone.`))
+      return;
     try {
       await deleteUser.mutateAsync(target.id);
       moveBackIfLastVisibleRowLeaves(false);
@@ -162,8 +194,15 @@ export function AdminUsersView() {
       <section className="grid flex-1 place-items-center" style={pageStyle}>
         <div className="max-w-md text-center">
           <h1 className="text-2xl font-semibold">Admin Users</h1>
-          <p className="mt-2 text-muted-foreground">You do not have permission to manage organization users.</p>
-          <Button variant="outline" className="mt-5" render={<Link href="/dashboard" />} nativeButton={false}>
+          <p className="mt-2 text-muted-foreground">
+            You do not have permission to manage organization users.
+          </p>
+          <Button
+            variant="outline"
+            className="mt-5"
+            render={<Link href="/dashboard" />}
+            nativeButton={false}
+          >
             Return to dashboard
           </Button>
         </div>
@@ -172,46 +211,69 @@ export function AdminUsersView() {
   }
 
   const availableRoles =
-    user?.organizationRole === "SUPERADMIN"
+    !canCreateUsers
+      ? []
+      : user?.organizationRole === "SUPERADMIN"
       ? SUPERADMIN_ROLES
       : user?.organizationRole === "ADMIN"
         ? ADMIN_ROLES
         : [];
   const canChangeSelectedRole =
-    user?.organizationRole === "SUPERADMIN" && selectedUser?.id !== user.id;
-  const roleChangeNote = user && selectedUser
-    ? selectedUser.id === user.id
-      ? "You cannot change your own organization role."
-      : user.organizationRole !== "SUPERADMIN"
-        ? "Only a Super Admin can change organization roles."
-        : null
-    : null;
+    canManageUsers &&
+    canAssignRoles &&
+    user?.organizationRole === "SUPERADMIN" &&
+    selectedUser?.id !== user.id;
+  const roleChangeNote =
+    user && selectedUser
+      ? selectedUser.id === user.id
+        ? "You cannot change your own organization role."
+        : !canManageUsers
+          ? "You do not have permission to manage organization users."
+        : !canAssignRoles || user.organizationRole !== "SUPERADMIN"
+          ? "Only a Super Admin can change organization roles."
+          : null
+      : null;
   const listError = usersQuery.error
     ? messageFrom(usersQuery.error, "Could not load organization users.")
     : undefined;
 
   return (
-    <section className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-6" style={pageStyle}>
+    <section
+      className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-6"
+      style={pageStyle}
+    >
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <nav aria-label="Breadcrumb" className="mb-5 flex items-center gap-2 text-sm text-muted-foreground">
-            <Link href="/dashboard" className="font-medium text-primary hover:underline">Dashboard</Link>
+          <nav
+            aria-label="Breadcrumb"
+            className="mb-5 flex items-center gap-2 text-sm text-muted-foreground"
+          >
+            <Link
+              href="/dashboard"
+              className="font-medium text-primary hover:underline"
+            >
+              Dashboard
+            </Link>
             <span aria-hidden="true">/</span>
             <span aria-current="page">Admin Users</span>
           </nav>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Admin Users</h1>
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+            Admin Users
+          </h1>
           <p className="mt-2 text-base text-muted-foreground sm:text-lg">
             Manage organization users and their roles.
           </p>
         </div>
-        <Button
-          className="h-11 gap-2 px-5"
-          onClick={openCreateDialog}
-          disabled={!user || isActionPending}
-        >
-          <Plus className="size-4" />
-          Create User
-        </Button>
+        {canCreateUsers && (
+          <Button
+            className="h-11 gap-2 px-5"
+            onClick={openCreateDialog}
+            disabled={!user || isActionPending}
+          >
+            <Plus className="size-4" />
+            Create User
+          </Button>
+        )}
       </div>
 
       <UsersTable
@@ -221,6 +283,7 @@ export function AdminUsersView() {
         total={total}
         currentUserId={user?.id ?? ""}
         currentRole={user?.organizationRole ?? "MEMBER"}
+        canManageUsers={canManageUsers}
         isLoading={!user || usersQuery.isLoading}
         isFetching={usersQuery.isFetching}
         isPending={isActionPending}

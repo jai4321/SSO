@@ -1,29 +1,34 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { and, count, desc, eq, ilike, isNull, or } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import { env } from '@/config/env';
-import { organizations, users } from '@/db/schema';
+import { auditEvents, organizations, users } from '@/db/schema';
 import {
   BadRequestError,
   ConflictError,
-  ForbiddenError,
   NotFoundError,
 } from '@/errors/app-error';
 import { db } from '@/lib/db';
+import { auditEventValues, recordAuditEvent } from '@/lib/audit';
 import { sendMail } from '@/lib/mailer';
 import { isUniqueViolation } from '@/lib/pg-errors';
 import { redis } from '@/lib/redis';
 import type { OrganizationRole } from '@/types/fastify-jwt';
 import { buildInvitationEmail } from './users.email';
 import type { CreateUserInput, ListUsersQuery, UpdateUserInput } from './users.schema';
+import {
+  assertCanAssignRole,
+  assertCanCreateRole,
+  assertCanManage,
+  assertCanRemoveLastActiveSuperadmin,
+  assertNotSelf,
+  isSuperadminOverride,
+  type UserPolicyActor,
+} from './user-policy';
 
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 const inviteTtlHours = () => Math.round(env.USER_INVITE_TOKEN_TTL_SECONDS / 3600);
 
-export interface Actor {
-  id: string;
-  organizationId: string;
-  organizationRole: OrganizationRole;
-}
+export type Actor = UserPolicyActor;
 
 type UserRow = typeof users.$inferSelect;
 
@@ -56,28 +61,13 @@ const getOrganizationName = async (organizationId: string) => {
   return org?.name ?? 'your organization';
 };
 
-// Creation policy: SUPERADMIN may assign any role; ADMIN may assign ADMIN or MEMBER; MEMBER cannot create.
-const assertCanCreateRole = (actor: Actor, role: OrganizationRole) => {
-  if (actor.organizationRole === 'SUPERADMIN') return;
-  if (actor.organizationRole === 'ADMIN' && (role === 'ADMIN' || role === 'MEMBER')) return;
-  throw new ForbiddenError('You do not have permission to create a user with this role');
-};
-
-// Manage policy: SUPERADMIN manages everyone; ADMIN manages only users they created.
-const assertCanManage = (actor: Actor, target: UserRow) => {
-  if (actor.organizationRole === 'SUPERADMIN') return;
-  if (actor.organizationRole === 'ADMIN' && target.createdBy === actor.id) return;
-  throw new ForbiddenError('You do not have permission to manage this user');
-};
-
-const assertNotSelf = (actor: Actor, target: UserRow, action: string) => {
-  if (target.id === actor.id) throw new ForbiddenError(`You cannot ${action} your own account`);
-};
-
 // Deactivating, deleting or demoting the last active SUPERADMIN would lock the organization out.
-const assertNotLastActiveSuperadmin = async (target: UserRow) => {
+const assertNotLastActiveSuperadmin = async (
+  target: UserRow,
+  executor: Pick<typeof db, 'select'>,
+) => {
   if (target.organizationRole !== 'SUPERADMIN' || !target.isActive) return;
-  const [{ value }] = await db
+  const [{ value }] = await executor
     .select({ value: count() })
     .from(users)
     .where(
@@ -88,9 +78,19 @@ const assertNotLastActiveSuperadmin = async (target: UserRow) => {
         isNull(users.deletedAt),
       ),
     );
-  if (value <= 1) {
-    throw new ForbiddenError('The organization must keep at least one active SUPERADMIN');
-  }
+  assertCanRemoveLastActiveSuperadmin(target, value);
+};
+
+const lockAndAssertSuperadminRemoval = async (
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  target: UserRow,
+) => {
+  if (target.organizationRole !== 'SUPERADMIN' || !target.isActive) return;
+  // Serialize demotions/deactivations/deletions within the organization to avoid concurrent lockout.
+  await tx.execute(
+    sql`select ${organizations.id} from ${organizations} where ${organizations.id} = ${target.organizationId} for update`,
+  );
+  await assertNotLastActiveSuperadmin(target, tx);
 };
 
 const sendInvitationMail = async (user: { id: string; name: string; email: string }, organizationId: string) => {
@@ -128,6 +128,16 @@ export async function createUser(actor: Actor, input: CreateUserInput) {
         organizationRole: input.organizationRole,
         createdBy: actor.id,
       });
+      await tx.insert(auditEvents).values(
+        auditEventValues({
+          organizationId: actor.organizationId,
+          actorUserId: actor.id,
+          eventType: 'organization.user.created',
+          resourceType: 'organization_user',
+          resourceId: userId,
+          details: { organizationRole: input.organizationRole },
+        }),
+      );
       await sendMail({
         to: input.email,
         ...buildInvitationEmail({
@@ -152,6 +162,7 @@ export async function createUser(actor: Actor, input: CreateUserInput) {
 
 export async function listUsers(actor: Actor, query: ListUsersQuery) {
   const filters = [eq(users.organizationId, actor.organizationId), isNull(users.deletedAt)];
+  if (actor.organizationRole === 'ADMIN') filters.push(eq(users.createdBy, actor.id));
 
   if (query.search) {
     const escapedSearch = query.search.replace(/[\\%_]/g, '\\$&');
@@ -178,12 +189,33 @@ export async function listUsers(actor: Actor, query: ListUsersQuery) {
     .limit(query.limit)
     .offset((query.page - 1) * query.limit);
 
+  if (rows.some((row) => isSuperadminOverride(actor, row))) {
+    await recordAuditEvent({
+      organizationId: actor.organizationId,
+      actorUserId: actor.id,
+      eventType: 'authorization.superadmin_override',
+      resourceType: 'organization_user_collection',
+      details: { operation: 'organization.users.list', rowsReturned: rows.length },
+    });
+  }
+
   return { users: rows.map(toPublicUser), total, page: query.page, limit: query.limit };
 }
 
 export async function getUser(actor: Actor, id: string) {
   const target = await findOrgUser(actor.organizationId, id);
   if (!target) throw new NotFoundError('User not found');
+  assertCanManage(actor, target);
+  if (isSuperadminOverride(actor, target)) {
+    await recordAuditEvent({
+      organizationId: actor.organizationId,
+      actorUserId: actor.id,
+      eventType: 'authorization.superadmin_override',
+      resourceType: 'organization_user',
+      resourceId: target.id,
+      details: { operation: 'organization.users.read', targetCreatedBy: target.createdBy },
+    });
+  }
   return toPublicUser(target);
 }
 
@@ -196,18 +228,52 @@ export async function updateUser(actor: Actor, id: string, input: UpdateUserInpu
   if (input.name !== undefined && input.name !== target.name) updates.name = input.name;
 
   if (input.organizationRole !== undefined && input.organizationRole !== target.organizationRole) {
-    if (actor.organizationRole !== 'SUPERADMIN') {
-      throw new ForbiddenError('Only SUPERADMIN can change organization roles');
-    }
+    assertCanAssignRole(actor);
     assertNotSelf(actor, target, 'change the role of');
-    await assertNotLastActiveSuperadmin(target);
     updates.organizationRole = input.organizationRole;
   }
 
   if (Object.keys(updates).length === 0) return toPublicUser(target);
 
-  const [updated] = await db.update(users).set(updates).where(eq(users.id, target.id)).returning();
-  return toPublicUser(updated);
+  return db.transaction(async (tx) => {
+    if (
+      input.organizationRole !== undefined &&
+      input.organizationRole !== target.organizationRole &&
+      input.organizationRole !== 'SUPERADMIN'
+    ) {
+      await lockAndAssertSuperadminRemoval(tx, target);
+    }
+    const [updated] = await tx.update(users).set(updates).where(eq(users.id, target.id)).returning();
+    const override = isSuperadminOverride(actor, target);
+    if (input.organizationRole !== undefined && input.organizationRole !== target.organizationRole) {
+      await tx.insert(auditEvents).values(
+        auditEventValues({
+          organizationId: actor.organizationId,
+          actorUserId: actor.id,
+          eventType: 'organization.user.role_assigned',
+          resourceType: 'organization_user',
+          resourceId: target.id,
+          details: {
+            previousRole: target.organizationRole,
+            organizationRole: input.organizationRole,
+          },
+        }),
+      );
+    }
+    if (override) {
+      await tx.insert(auditEvents).values(
+        auditEventValues({
+          organizationId: actor.organizationId,
+          actorUserId: actor.id,
+          eventType: 'authorization.superadmin_override',
+          resourceType: 'organization_user',
+          resourceId: target.id,
+          details: { operation: 'organization.users.update', targetCreatedBy: target.createdBy },
+        }),
+      );
+    }
+    return toPublicUser(updated);
+  });
 }
 
 export async function setUserActive(actor: Actor, id: string, isActive: boolean) {
@@ -217,13 +283,30 @@ export async function setUserActive(actor: Actor, id: string, isActive: boolean)
 
   if (!isActive) {
     assertNotSelf(actor, target, 'deactivate');
-    await assertNotLastActiveSuperadmin(target);
   }
 
   if (target.isActive === isActive) return toPublicUser(target);
 
-  const [updated] = await db.update(users).set({ isActive }).where(eq(users.id, target.id)).returning();
-  return toPublicUser(updated);
+  return db.transaction(async (tx) => {
+    if (!isActive) await lockAndAssertSuperadminRemoval(tx, target);
+    const [updated] = await tx.update(users).set({ isActive }).where(eq(users.id, target.id)).returning();
+    if (isSuperadminOverride(actor, target)) {
+      await tx.insert(auditEvents).values(
+        auditEventValues({
+          organizationId: actor.organizationId,
+          actorUserId: actor.id,
+          eventType: 'authorization.superadmin_override',
+          resourceType: 'organization_user',
+          resourceId: target.id,
+          details: {
+            operation: isActive ? 'organization.users.activate' : 'organization.users.deactivate',
+            targetCreatedBy: target.createdBy,
+          },
+        }),
+      );
+    }
+    return toPublicUser(updated);
+  });
 }
 
 export async function deleteUser(actor: Actor, id: string) {
@@ -231,9 +314,23 @@ export async function deleteUser(actor: Actor, id: string) {
   if (!target) throw new NotFoundError('User not found');
   assertCanManage(actor, target);
   assertNotSelf(actor, target, 'delete');
-  await assertNotLastActiveSuperadmin(target);
 
-  await db.update(users).set({ deletedAt: new Date() }).where(eq(users.id, target.id));
+  await db.transaction(async (tx) => {
+    await lockAndAssertSuperadminRemoval(tx, target);
+    await tx.update(users).set({ deletedAt: new Date() }).where(eq(users.id, target.id));
+    if (isSuperadminOverride(actor, target)) {
+      await tx.insert(auditEvents).values(
+        auditEventValues({
+          organizationId: actor.organizationId,
+          actorUserId: actor.id,
+          eventType: 'authorization.superadmin_override',
+          resourceType: 'organization_user',
+          resourceId: target.id,
+          details: { operation: 'organization.users.delete', targetCreatedBy: target.createdBy },
+        }),
+      );
+    }
+  });
 }
 
 export async function resendInvitation(actor: Actor, id: string) {
@@ -243,4 +340,14 @@ export async function resendInvitation(actor: Actor, id: string) {
   if (target.passwordHash) throw new BadRequestError('This user has already set a password');
 
   await sendInvitationMail(target, actor.organizationId);
+  if (isSuperadminOverride(actor, target)) {
+    await recordAuditEvent({
+      organizationId: actor.organizationId,
+      actorUserId: actor.id,
+      eventType: 'authorization.superadmin_override',
+      resourceType: 'organization_user',
+      resourceId: target.id,
+      details: { operation: 'organization.users.resend_invitation', targetCreatedBy: target.createdBy },
+    });
+  }
 }

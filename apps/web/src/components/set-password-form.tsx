@@ -4,18 +4,35 @@ import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useSetPassword } from "@/hooks/use-auth";
 import { ApiError } from "@/lib/api-client";
-import { setPasswordFormSchema, type SetPasswordFormValues } from "../schemas";
 
-export function SetPasswordForm({ setPasswordToken }: { setPasswordToken: string }) {
+const setPasswordFormSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .max(72)
+      .regex(/[a-zA-Z]/, "Password must contain a letter")
+      .regex(/[0-9]/, "Password must contain a digit"),
+    confirmPassword: z.string(),
+  })
+  .refine((values) => values.password === values.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match",
+  });
+
+type SetPasswordFormValues = z.infer<typeof setPasswordFormSchema>;
+
+export function SetPasswordForm({ token }: { token?: string }) {
   const setPassword = useSetPassword();
   const [done, setDone] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const form = useForm<SetPasswordFormValues>({
     resolver: zodResolver(setPasswordFormSchema),
@@ -23,20 +40,41 @@ export function SetPasswordForm({ setPasswordToken }: { setPasswordToken: string
   });
 
   const onSubmit = form.handleSubmit(async ({ password }) => {
+    if (!token) return;
+    setErrorMessage(null);
+
     try {
-      await setPassword.mutateAsync({ token: setPasswordToken, password });
+      await setPassword.mutateAsync({ token, password });
       setDone(true);
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : "Could not set password");
+      setErrorMessage(error instanceof ApiError ? error.message : "Could not set password");
     }
   });
+
+  if (!token) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Password link unavailable</CardTitle>
+          <CardDescription>
+            This link is missing its token. Contact your organization administrator and ask them to resend the invitation.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button render={<Link href="/login" />} nativeButton={false} variant="outline" className="w-full">
+            Return to sign in
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (done) {
     return (
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Password set</CardTitle>
-          <CardDescription>Your administrator account is ready.</CardDescription>
+          <CardDescription>Your account is ready. You can now sign in.</CardDescription>
         </CardHeader>
         <CardContent>
           <Button render={<Link href="/login" />} nativeButton={false} className="w-full">
@@ -50,10 +88,8 @@ export function SetPasswordForm({ setPasswordToken }: { setPasswordToken: string
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>Organization verified</CardTitle>
-        <CardDescription>
-          Set a password for your administrator account to finish setup. This link expires soon.
-        </CardDescription>
+        <CardTitle>Set your password</CardTitle>
+        <CardDescription>Choose a password for your account to finish setup.</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -84,6 +120,7 @@ export function SetPasswordForm({ setPasswordToken }: { setPasswordToken: string
                 </FormItem>
               )}
             />
+            {errorMessage && <p role="alert" className="text-sm text-destructive">{errorMessage}</p>}
             <Button type="submit" disabled={setPassword.isPending}>
               {setPassword.isPending ? "Saving…" : "Set password"}
             </Button>
