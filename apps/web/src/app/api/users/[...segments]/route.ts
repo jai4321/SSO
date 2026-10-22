@@ -1,7 +1,14 @@
-import { withErrorHandler } from "@/lib/errors/with-error-handler";
+import { createRouteHandlers } from "@/lib/errors/with-error-handler";
 import { proxyApi } from "@/lib/server-api";
 
-export const GET = withErrorHandler(proxyApi);
-export const PATCH = withErrorHandler(proxyApi);
-export const POST = withErrorHandler(proxyApi);
-export const DELETE = withErrorHandler(proxyApi);
+const handlers = createRouteHandlers({
+  GET: proxyApi,
+  PATCH: proxyApi,
+  POST: proxyApi,
+  DELETE: proxyApi,
+});
+
+export const GET = handlers.GET;
+export const PATCH = handlers.PATCH;
+export const POST = handlers.POST;
+export const DELETE = handlers.DELETE;

@@ -1,15 +1,11 @@
 import { z } from 'zod';
+import {
+  organizationPermissionKeys,
+  type OrganizationPermissionKey,
+} from '@onesys/contracts/keys/organization-permissions';
 
-export const permissionKeys = [
-  'organization.users.read',
-  'organization.users.create',
-  'organization.users.manage',
-  'organization.users.assign_role',
-  'workspace.create',
-  'workspace.products.manage',
-] as const;
-
-export type PermissionKey = (typeof permissionKeys)[number];
+export const permissionKeys = organizationPermissionKeys;
+export type PermissionKey = OrganizationPermissionKey;
 
 const organizationRoleSchema = z.enum(['SUPERADMIN', 'ADMIN', 'MEMBER']);
 const permissionKeySchema = z.enum(permissionKeys);

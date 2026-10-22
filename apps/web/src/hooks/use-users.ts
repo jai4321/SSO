@@ -54,7 +54,6 @@ function usersQueryString(query: OrganizationUsersQuery) {
 }
 
 export function useOrganizationUsers(query: OrganizationUsersQuery, enabled = true) {
-  console.log(query, enabled);
   return useQuery({
     queryKey: [...USERS_QUERY_KEY, query],
     queryFn: () =>

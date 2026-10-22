@@ -1,8 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
-
-const ACCESS_COOKIE = "onesys_access_token";
-const REFRESH_COOKIE = "onesys_refresh_token";
+import { SESSION_COOKIE_NAMES } from "@/config/keys/session-cookies";
 
 export interface SessionTokens {
   accessToken: string;
@@ -18,8 +16,8 @@ const cookieOptions = {
 
 export async function setSessionCookies(tokens: SessionTokens) {
   const store = await cookies();
-  store.set(ACCESS_COOKIE, tokens.accessToken, { ...cookieOptions, maxAge: 15 * 60 });
-  store.set(REFRESH_COOKIE, tokens.refreshToken, {
+  store.set(SESSION_COOKIE_NAMES.accessToken, tokens.accessToken, { ...cookieOptions, maxAge: 15 * 60 });
+  store.set(SESSION_COOKIE_NAMES.refreshToken, tokens.refreshToken, {
     ...cookieOptions,
     maxAge: 7 * 24 * 60 * 60,
   });
@@ -28,13 +26,13 @@ export async function setSessionCookies(tokens: SessionTokens) {
 export async function getSessionCookies(): Promise<Partial<SessionTokens>> {
   const store = await cookies();
   return {
-    accessToken: store.get(ACCESS_COOKIE)?.value,
-    refreshToken: store.get(REFRESH_COOKIE)?.value,
+    accessToken: store.get(SESSION_COOKIE_NAMES.accessToken)?.value,
+    refreshToken: store.get(SESSION_COOKIE_NAMES.refreshToken)?.value,
   };
 }
 
 export async function clearSessionCookies() {
   const store = await cookies();
-  store.delete(ACCESS_COOKIE);
-  store.delete(REFRESH_COOKIE);
+  store.delete(SESSION_COOKIE_NAMES.accessToken);
+  store.delete(SESSION_COOKIE_NAMES.refreshToken);
 }

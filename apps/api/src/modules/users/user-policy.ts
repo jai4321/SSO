@@ -1,4 +1,5 @@
 import { ForbiddenError, NotFoundError } from '@/errors/app-error';
+import { ORGANIZATION_PERMISSION } from '@onesys/contracts/keys/organization-permissions';
 import type { OrganizationRole } from '@/types/fastify-jwt';
 
 export interface UserPolicyActor {
@@ -32,7 +33,7 @@ export function assertCanManage(actor: UserPolicyActor, target: UserPolicyTarget
 export function assertCanAssignRole(actor: UserPolicyActor) {
   if (
     actor.organizationRole !== 'SUPERADMIN' ||
-    !actor.permissions.includes('organization.users.assign_role')
+    !actor.permissions.includes(ORGANIZATION_PERMISSION.assignUserRoles)
   ) {
     throw new ForbiddenError('Only SUPERADMIN can change organization roles');
   }

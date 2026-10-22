@@ -13,6 +13,12 @@ Single place to see what is planned and what is done. Update the checkboxes as w
 
 Order: 1.1 -> 1.2 -> 1.3 -> 1.4. Each part includes its own backend, frontend and tests.
 
+## Project Documentation
+
+| Item | Scope | Status | File |
+|------|-------|--------|------|
+| Root README | Project overview, architecture diagram, local setup and environment guide | [x] Complete | [README.md](../README.md) |
+
 ## Later phases
 
 | Phase | Scope | Status | File |

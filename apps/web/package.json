@@ -3,12 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "build:contracts": "npm --prefix ../.. run build --workspace=@onesys/contracts",
+    "predev": "npm run build:contracts",
     "dev": "next dev",
+    "prebuild": "npm run build:contracts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "@onesys/contracts": "*",
     "@base-ui/react": "^1.8.0",
     "@hookform/resolvers": "^5.9.1",
     "@tanstack/react-query": "^5.103.1",

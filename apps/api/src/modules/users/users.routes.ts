@@ -1,4 +1,5 @@
 import { FastifyPluginAsync } from 'fastify';
+import { ORGANIZATION_PERMISSION } from '@onesys/contracts/keys/organization-permissions';
 import { requirePermission } from '@/guards/require-permission';
 import { authenticate } from '@/middlewares/authenticate';
 import {
@@ -18,9 +19,9 @@ import {
 } from './users.service';
 
 // Coarse grants are role-based; ownership and role-assignment limits remain in the service.
-const canReadUsers = requirePermission('organization.users.read');
-const canCreateUsers = requirePermission('organization.users.create');
-const canManageUsers = requirePermission('organization.users.manage');
+const canReadUsers = requirePermission(ORGANIZATION_PERMISSION.readUsers);
+const canCreateUsers = requirePermission(ORGANIZATION_PERMISSION.createUsers);
+const canManageUsers = requirePermission(ORGANIZATION_PERMISSION.manageUsers);
 const emailRouteLimit = { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } };
 
 export const userRoutes: FastifyPluginAsync = async (app) => {

@@ -8,6 +8,7 @@ import {
   NotFoundError,
 } from '@/errors/app-error';
 import { db } from '@/lib/db';
+import { ORGANIZATION_PERMISSION } from '@onesys/contracts/keys/organization-permissions';
 import { auditEventValues, recordAuditEvent } from '@/lib/audit';
 import { sendMail } from '@/lib/mailer';
 import { isUniqueViolation } from '@/lib/pg-errors';
@@ -213,7 +214,7 @@ export async function getUser(actor: Actor, id: string) {
       eventType: 'authorization.superadmin_override',
       resourceType: 'organization_user',
       resourceId: target.id,
-      details: { operation: 'organization.users.read', targetCreatedBy: target.createdBy },
+      details: { operation: ORGANIZATION_PERMISSION.readUsers, targetCreatedBy: target.createdBy },
     });
   }
   return toPublicUser(target);

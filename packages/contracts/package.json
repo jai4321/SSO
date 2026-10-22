@@ -1,0 +1,17 @@
+{
+  "name": "@onesys/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "exports": {
+    "./keys/organization-permissions": {
+      "types": "./dist/keys/organization-permissions.d.ts",
+      "default": "./dist/keys/organization-permissions.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

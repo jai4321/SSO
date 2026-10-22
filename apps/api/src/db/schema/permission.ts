@@ -1,17 +1,13 @@
 import { sql } from 'drizzle-orm';
 import { check, pgTable, primaryKey, text } from 'drizzle-orm/pg-core';
+import {
+  organizationPermissionKeys as permissionKeys,
+  type OrganizationPermissionKey,
+} from '@onesys/contracts/keys/organization-permissions';
 import { organizationRoleEnum } from './user';
 
-export const permissionKeys = [
-  'organization.users.read',
-  'organization.users.create',
-  'organization.users.manage',
-  'organization.users.assign_role',
-  'workspace.create',
-  'workspace.products.manage',
-] as const;
-
-export type PermissionKey = (typeof permissionKeys)[number];
+export { permissionKeys };
+export type PermissionKey = OrganizationPermissionKey;
 
 export const permissions = pgTable(
   'permissions',

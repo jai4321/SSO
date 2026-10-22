@@ -16,7 +16,13 @@ export async function webApi<T>(path: string, init: RequestInit = {}): Promise<T
   headers.forEach((value, key) => {
     requestHeaders[key] = value;
   });
-
+  console.log({
+    url: path,
+    method: init.method?.toLowerCase() as Method | undefined,
+    data: init.body ?? undefined,
+    headers: requestHeaders,
+    signal: init.signal ?? undefined,
+  });
   const { data } = await webApiClient.request<T>({
     url: path,
     method: init.method?.toLowerCase() as Method | undefined,

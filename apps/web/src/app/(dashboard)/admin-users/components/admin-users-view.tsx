@@ -4,6 +4,7 @@ import { useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
+import { ORGANIZATION_PERMISSION } from "@onesys/contracts/keys/organization-permissions";
 import type { DataTableQuery } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,10 +33,10 @@ const messageFrom = (error: unknown, fallback: string) =>
 
 export function AdminUsersView() {
   const user = useAuthStore((state) => state.user);
-  const canViewUsers = useCan("organization.users.read");
-  const canCreateUsers = useCan("organization.users.create");
-  const canManageUsers = useCan("organization.users.manage");
-  const canAssignRoles = useCan("organization.users.assign_role");
+  const canViewUsers = useCan(ORGANIZATION_PERMISSION.readUsers);
+  const canCreateUsers = useCan(ORGANIZATION_PERMISSION.createUsers);
+  const canManageUsers = useCan(ORGANIZATION_PERMISSION.manageUsers);
+  const canAssignRoles = useCan(ORGANIZATION_PERMISSION.assignUserRoles);
   const [tableQuery, setTableQuery] = useState<DataTableQuery>({
     search: "",
     filters: { role: "all", status: "all" },
@@ -63,7 +64,7 @@ export function AdminUsersView() {
     [roleFilter, search, statusFilter, tableQuery.page, tableQuery.pageSize],
   );
   const usersQuery = useOrganizationUsers(query, Boolean(canViewUsers));
-
+console.log('this is userQuery',usersQuery);
   const createUser = useCreateOrganizationUser();
   const updateUser = useUpdateOrganizationUser();
   const setUserActive = useSetOrganizationUserActive();

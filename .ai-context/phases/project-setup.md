@@ -72,8 +72,8 @@ Establish the technical foundation of the project before building any feature. T
 - Run unit tests (once available).
 
 ### 10. Documentation
-- `README.md` with setup instructions (local dev, Docker, env vars).
-- Architecture diagram (high-level: frontend, backend, DB, Redis).
+- [x] `README.md` with setup instructions (local dev, Docker, env vars).
+- [x] Architecture diagram (high-level: frontend, backend, DB, Redis).
 
 ## Deliverables
 - Working monorepo skeleton with frontend and backend booting locally.

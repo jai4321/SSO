@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { ORGANIZATION_PERMISSION } from "@onesys/contracts/keys/organization-permissions";
 import { useLogout } from "@/hooks/use-auth";
 import { useCan } from "@/hooks/use-can";
 import type { PermissionKey } from "@/lib/auth-permissions";
@@ -32,25 +33,25 @@ const NAV_ITEMS: NavItem[] = [
     href: "/workspaces",
     label: "Workspaces",
     icon: Boxes,
-    requiredPermission: "workspace.products.manage",
+    requiredPermission: ORGANIZATION_PERMISSION.manageWorkspaceProducts,
   },
   {
     href: "/products",
     label: "Products",
     icon: Package,
-    requiredPermission: "workspace.products.manage",
+    requiredPermission: ORGANIZATION_PERMISSION.manageWorkspaceProducts,
   },
   {
     href: "/admin-users",
     label: "Admin Users",
     icon: UserCog,
-    requiredPermission: "organization.users.read",
+    requiredPermission: ORGANIZATION_PERMISSION.readUsers,
   },
   {
     href: "/client-users",
     label: "Client Users",
     icon: Users,
-    requiredPermission: "workspace.products.manage",
+    requiredPermission: ORGANIZATION_PERMISSION.manageWorkspaceProducts,
   },
   { href: "/profile", label: "Profile Settings", icon: Settings },
 ];
@@ -63,12 +64,12 @@ interface AppSidebarProps {
 export function AppSidebar({ onNavigate }: AppSidebarProps) {
   const pathname = usePathname();
   const logout = useLogout();
-  const canManageProducts = useCan("workspace.products.manage");
-  const canReadUsers = useCan("organization.users.read");
+  const canManageProducts = useCan(ORGANIZATION_PERMISSION.manageWorkspaceProducts);
+  const canReadUsers = useCan(ORGANIZATION_PERMISSION.readUsers);
   const permittedItems = NAV_ITEMS.filter(({ requiredPermission }) => {
     if (!requiredPermission) return true;
-    if (requiredPermission === "workspace.products.manage") return canManageProducts;
-    if (requiredPermission === "organization.users.read") return canReadUsers;
+    if (requiredPermission === ORGANIZATION_PERMISSION.manageWorkspaceProducts) return canManageProducts;
+    if (requiredPermission === ORGANIZATION_PERMISSION.readUsers) return canReadUsers;
     return false;
   });
 

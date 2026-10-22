@@ -10,6 +10,7 @@ Requirements: [summary.md](../summary.md) (Backend Task 4); roles are fixed: SUP
 - [x] Keep SUPERADMIN access outside creator scope explicit and record override events in `audit_events`
 - [x] Prevent removing or demoting the last active SUPERADMIN
 - [x] Keep grants system-managed; Redis permission caching and runtime grant editing are outside this phase
+- [x] Keep built-in permission keys in the shared contracts package so API and frontend use one definition
 
 ## Frontend
 - [x] Validate `/me` role and permission data and gate navigation and actions with shared `useCan`

@@ -1,13 +1,20 @@
 import { NextResponse } from "next/server";
 import { AppError } from "./app-error";
 
-type Handler<TReq extends Request, TCtx> = (req: TReq, ctx: TCtx) => Promise<Response>;
+type RouteMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
+type Handler<TArgs extends [Request, ...unknown[]]> = (...args: TArgs) => Promise<Response>;
+type ApiRouteHandler = (request: Request, ...context: unknown[]) => Promise<Response>;
+type ApiRouteHandlers = Partial<Record<RouteMethod, ApiRouteHandler>>;
+
+type WrappedApiRouteHandlers<THandlers extends ApiRouteHandlers> = {
+  [Method in keyof THandlers]: ApiRouteHandler;
+};
 
 // Wraps route handlers so they can throw AppError instead of hand-building error responses.
-export function withErrorHandler<TReq extends Request, TCtx>(handler: Handler<TReq, TCtx>) {
-  return async (req: TReq, ctx: TCtx): Promise<Response> => {
+export function withErrorHandler<TArgs extends [Request, ...unknown[]]>(handler: Handler<TArgs>) {
+  return async (...args: TArgs): Promise<Response> => {
     try {
-      return await handler(req, ctx);
+      return await handler(...args);
     } catch (error) {
       if (error instanceof AppError) {
         return NextResponse.json(
@@ -22,4 +29,18 @@ export function withErrorHandler<TReq extends Request, TCtx>(handler: Handler<TR
       );
     }
   };
+}
+
+// Apply the same JSON error boundary to all methods exported by a route module.
+export function createRouteHandlers<THandlers extends ApiRouteHandlers>(
+  handlers: THandlers,
+): WrappedApiRouteHandlers<THandlers> {
+  const wrapped: Partial<Record<RouteMethod, ApiRouteHandler>> = {};
+
+  for (const method of Object.keys(handlers) as RouteMethod[]) {
+    const handler = handlers[method];
+    if (handler) wrapped[method] = withErrorHandler(handler);
+  }
+
+  return wrapped as WrappedApiRouteHandlers<THandlers>;
 }
